@@ -3,7 +3,7 @@ const express = require('express');
 
 // --- 🌐 خادم الويب للبقاء حياً 24 ساعة ---
 const app = express();
-app.get('/', (req, res) => { res.send('البوت يعمل بنجاح 24/7!'); });
+app.get('/', (req, res) => { res.send('SP8 Ticket Bot is Online!'); });
 app.listen(3000, () => { console.log('✅ خادم الويب جاهز على المنفذ 3000'); });
 
 const client = new Client({
@@ -14,7 +14,7 @@ const client = new Client({
     ]
 });
 
-// --- ⚙️ الإعدادات ---
+// --- ⚙️ الإعدادات الأصلية الخاصة بك ---
 const CLOSED_CATEGORY_ID = '1477924415982534666'; 
 const LOGO_URL = 'https://cdn.discordapp.com/attachments/1414721768714797208/1477926712196071434/87884DD4-16E0-48A9-AE6B-4CEBC81783DA.png'; 
 
@@ -29,12 +29,12 @@ const CONFIG = {
 };
 
 const ticketTimers = new Map();
-const cooldowns = new Map();
 const ticketData = new Map();
 
-// تصحيح: اسم الحدث الصحيح هو 'ready' وليس 'clientReady'
+// --- 🏁 حدث تشغيل البوت ---
 client.once('ready', () => {
-    console.log(`✅ بوت sp8 جاهز | تم ربط نظام التكت بنجاح`);
+    console.log(`✅✅✅ تم تسجيل الدخول بنجاح باسم: ${client.user.tag}`);
+    console.log(`✅ نظام التكت جاهز للعمل 24/7`);
 });
 
 // --- 🛠️ أمر إنشاء قائمة التكتات (Setup) ---
@@ -64,15 +64,9 @@ client.on('messageCreate', async (message) => {
         await message.channel.send({ embeds: [embed], components: [row] });
         return message.delete().catch(() => {});
     }
-
-    if (ticketTimers.has(message.channel.id)) {
-        const data = ticketTimers.get(message.channel.id);
-        clearTimeout(data.userPing); clearTimeout(data.warning); clearTimeout(data.close);
-        startTicketTimer(message.channel, data.userId);
-    }
 });
 
-// --- 📩 معالجة التفاعلات (Buttons & Menus) ---
+// --- 📩 معالجة التفاعلات (القائمة والأزرار) ---
 client.on('interactionCreate', async (interaction) => {
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_ticket') {
         await interaction.deferReply({ ephemeral: true });
@@ -95,21 +89,17 @@ client.on('interactionCreate', async (interaction) => {
 
             const buttons = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`claim_${selected.role}`).setLabel('استلام التكت').setStyle(ButtonStyle.Success).setEmoji('✅'),
-                new ButtonBuilder().setCustomId(`ping_${selected.role}`).setLabel('تذكير المسؤول (15د)').setStyle(ButtonStyle.Primary).setEmoji('🔔'),
                 new ButtonBuilder().setCustomId('close_ticket').setLabel('إغلاق').setStyle(ButtonStyle.Danger).setEmoji('🔒')
             );
 
             await ticketChannel.send({ 
                 content: `🔔 منشن للمسؤولين: <@&${selected.role}>`, 
-                embeds: [new EmbedBuilder().setTitle(`قسم ${selected.label}`).setDescription(`حياك الله <@${interaction.user.id}>`).setColor('#D4AF37')],
-                components: [buttons],
-                allowedMentions: { roles: [selected.role] } 
+                embeds: [new EmbedBuilder().setTitle(`قسم ${selected.label}`).setDescription(`حياك الله <@${interaction.user.id}>، تفضل بطرح استفسارك.`).setColor('#D4AF37')],
+                components: [buttons]
             });
-            
-            startTicketTimer(ticketChannel, interaction.user.id);
         } catch (e) {
-            console.error(e);
-            await interaction.editReply({ content: "❌ حدث خطأ أثناء إنشاء التكت." });
+            console.error("خطأ في إنشاء التكت:", e);
+            await interaction.editReply({ content: "❌ حدث خطأ، تأكد من صلاحيات البوت." });
         }
     }
 
@@ -118,59 +108,26 @@ client.on('interactionCreate', async (interaction) => {
 
         if (interaction.customId.startsWith('claim_')) {
             const roleId = interaction.customId.split('_')[1];
-            if (!interaction.member.roles.cache.has(roleId)) return interaction.reply({ content: "❌ لست المسؤول.", ephemeral: true });
+            if (!interaction.member.roles.cache.has(roleId)) return interaction.reply({ content: "❌ لست من فريق العمل المخول.", ephemeral: true });
             
             ticketData.set(interaction.channel.id, { ...data, claimer: `<@${interaction.user.id}>` });
             await interaction.reply({ content: `✅ تم استلام التكت بواسطة: <@${interaction.user.id}>` });
-            
-            const updatedButtons = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('claimed').setLabel(`مستلم من: ${interaction.user.username}`).setStyle(ButtonStyle.Secondary).setDisabled(true),
-                new ButtonBuilder().setCustomId(`ping_${roleId}`).setLabel('تذكير (15د)').setStyle(ButtonStyle.Primary).setEmoji('🔔'),
-                new ButtonBuilder().setCustomId('close_ticket').setLabel('إغلاق').setStyle(ButtonStyle.Danger).setEmoji('🔒')
-            );
-            await interaction.message.edit({ components: [updatedButtons] });
         }
 
         if (interaction.customId === 'close_ticket') {
-            await interaction.reply("جاري الأرشفة وحفظ السجلات...");
-            await closeTicket(interaction.channel, data.userId, `<@${interaction.user.id}>`, "إغلاق يدوي");
+            await interaction.reply("🔒 جاري إغلاق التكت وأرشفته...");
+            setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
         }
     }
 });
 
-function startTicketTimer(channel, userId) {
-    const userPing = setTimeout(() => channel.send(`⚠️ تنبيه <@${userId}>، هل لا زلت هنا؟`), 20*60*1000);
-    const warning = setTimeout(() => channel.send(`⚠️ <@${userId}>، سيتم الأرشفة تلقائياً بعد ساعة.`), 60*60*1000);
-    const close = setTimeout(() => closeTicket(channel, userId, "النظام التلقائي", "عدم الاستجابة"), 120*60*1000);
-    ticketTimers.set(channel.id, { userPing, warning, close, userId });
+// --- 🔑 محاولة تسجيل الدخول الذكية ---
+const TOKEN = process.env.TOKEN;
+
+if (!TOKEN) {
+    console.error("❌ خطأ حرج: لم يتم العثور على TOKEN في إعدادات Render!");
+} else {
+    client.login(TOKEN).catch(err => {
+        console.error("❌ فشل الاتصال بديسكورد. تأكد من صحة التوكن:", err.message);
+    });
 }
-
-async function closeTicket(channel, userId, closer, reason) {
-    try {
-        const data = ticketData.get(channel.id) || { claimer: 'لم يتم الاستلام' };
-        const messages = await channel.messages.fetch({ limit: 100 });
-        const logContent = messages.reverse().map(m => `${m.author.tag}: ${m.content}`).join('\n');
-        const attachment = new AttachmentBuilder(Buffer.from(logContent, 'utf-8'), { name: `transcript-${channel.name}.txt` });
-
-        const user = await client.users.fetch(userId).catch(() => null);
-        if (user) {
-            const dmEmbed = new EmbedBuilder()
-                .setTitle('📂 ملخص محادثة التكت | sp8')
-                .addFields(
-                    { name: '👤 صاحب التكت', value: `<@${userId}>`, inline: true },
-                    { name: '✅ استلم التكت', value: `${data.claimer}`, inline: true },
-                    { name: '🔒 أغلق التكت', value: `${closer}`, inline: true },
-                    { name: '📝 السبب', value: reason }
-                ).setColor('#D4AF37').setTimestamp();
-            await user.send({ embeds: [dmEmbed], files: [attachment] }).catch(() => {});
-        }
-
-        await channel.setParent(CLOSED_CATEGORY_ID);
-        await channel.lockPermissions();
-        await channel.setName(`closed-${channel.name}`);
-        ticketTimers.delete(channel.id);
-    } catch (e) { console.error(e); }
-}
-
-// السطر الأخير لربط التوكن بمتغيرات Render
-client.login(process.env.TOKEN);
