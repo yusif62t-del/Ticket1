@@ -15,8 +15,6 @@ const client = new Client({
 });
 
 // --- ⚙️ الإعدادات ---
-// ملاحظة: قم بتغيير التوكن فوراً من موقع المطورين لأن التوكن القديم مكشوف الآن
-const TOKEN = ''; 
 const CLOSED_CATEGORY_ID = '1477924415982534666'; 
 const LOGO_URL = 'https://cdn.discordapp.com/attachments/1414721768714797208/1477926712196071434/87884DD4-16E0-48A9-AE6B-4CEBC81783DA.png'; 
 
@@ -34,7 +32,8 @@ const ticketTimers = new Map();
 const cooldowns = new Map();
 const ticketData = new Map();
 
-client.once('clientReady', () => {
+// تصحيح: اسم الحدث الصحيح هو 'ready' وليس 'clientReady'
+client.once('ready', () => {
     console.log(`✅ بوت sp8 جاهز | تم ربط نظام التكت بنجاح`);
 });
 
@@ -42,7 +41,6 @@ client.once('clientReady', () => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    // اكتب !setup في القناة لإظهار لوحة التكتات
     if (message.content === '!setup') {
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
 
@@ -67,7 +65,6 @@ client.on('messageCreate', async (message) => {
         return message.delete().catch(() => {});
     }
 
-    // إدارة وقت التكت (تحديث التايمر عند إرسال رسالة)
     if (ticketTimers.has(message.channel.id)) {
         const data = ticketTimers.get(message.channel.id);
         clearTimeout(data.userPing); clearTimeout(data.warning); clearTimeout(data.close);
@@ -112,11 +109,10 @@ client.on('interactionCreate', async (interaction) => {
             startTicketTimer(ticketChannel, interaction.user.id);
         } catch (e) {
             console.error(e);
-            await interaction.editReply({ content: "❌ حدث خطأ أثناء إنشاء التكت. تأكد من صلاحيات البوت وقسم الفئات." });
+            await interaction.editReply({ content: "❌ حدث خطأ أثناء إنشاء التكت." });
         }
     }
 
-    // باقي كود الأزرار (Claim & Close) يوضع هنا كما هو في ملفك الأصلي...
     if (interaction.isButton()) {
         const data = ticketData.get(interaction.channel.id) || { userId: interaction.user.id };
 
@@ -142,7 +138,6 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-// الدوال المساعدة (Timer & Close)
 function startTicketTimer(channel, userId) {
     const userPing = setTimeout(() => channel.send(`⚠️ تنبيه <@${userId}>، هل لا زلت هنا؟`), 20*60*1000);
     const warning = setTimeout(() => channel.send(`⚠️ <@${userId}>، سيتم الأرشفة تلقائياً بعد ساعة.`), 60*60*1000);
@@ -177,6 +172,5 @@ async function closeTicket(channel, userId, closer, reason) {
     } catch (e) { console.error(e); }
 }
 
-
+// السطر الأخير لربط التوكن بمتغيرات Render
 client.login(process.env.TOKEN);
-
