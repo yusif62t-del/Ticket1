@@ -177,4 +177,5 @@ async function closeTicket(channel, userId, closer, reason) {
     } catch (e) { console.error(e); }
 }
 
-client.login(TOKEN);
+
+client.login(process.env.TOKEN);
