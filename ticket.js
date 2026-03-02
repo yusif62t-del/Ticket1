@@ -179,3 +179,4 @@ async function closeTicket(channel, userId, closer, reason) {
 
 
 client.login(process.env.TOKEN);
+
